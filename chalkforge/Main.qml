@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtQuick.Shapes
+import HoldDetector 1.0
 
 ApplicationWindow {
     visible: true
@@ -11,6 +12,11 @@ ApplicationWindow {
     title: "Chalkforge"
 
     color: "#1e1e1e"
+    HoldDetector {
+        id: detector
+    }
+
+    property var currentContour: []
 
     ColumnLayout {
         anchors.fill: parent
@@ -149,7 +155,65 @@ ApplicationWindow {
                         yScale: container.currentScale
                     }
                 }
+                Shape {
 
+                    anchors.fill: parent
+
+                    ShapePath {
+
+                        strokeWidth: 3
+                        strokeColor: "lime"
+                        fillColor: "#3300ff00"
+
+                        PathPolyline {
+
+                            path: {
+
+                                let pts = currentContour.map(function(p) {
+
+                                    return Qt.point(
+                                        wallImage.x
+                                        + p.x * container.currentScale,
+
+                                        wallImage.y
+                                        + p.y * container.currentScale
+                                    )
+                                })
+
+                                if (pts.length > 0)
+                                    pts.push(pts[0])
+
+                                return pts
+                            }
+                        }
+                    }
+                }
+                Repeater {
+                    model: holdModel
+
+                    Rectangle {
+
+                        width: 20
+                        height: 20
+                        radius: 10
+
+                        color: "red"
+                        border.color: "white"
+                        border.width: 2
+
+                        x: wallImage.x
+                           + model.xPos
+                           * wallImage.width
+                           * container.currentScale
+                           - width / 2
+
+                        y: wallImage.y
+                           + model.yPos
+                           * wallImage.height
+                           * container.currentScale
+                           - height / 2
+                    }
+                }
                 MouseArea {
                     anchors.fill: parent
 
@@ -174,6 +238,24 @@ ApplicationWindow {
                             lastY = mouse.y
                         }
                     }
+                    onDoubleClicked: (mouse) => {
+
+                        let imageX =
+                            (mouse.x - wallImage.x)
+                            / container.currentScale
+
+                        let imageY =
+                            (mouse.y - wallImage.y)
+                            / container.currentScale
+
+                        currentContour = detector.detectHold(
+                            wallImage.source.toString(),
+                            Math.floor(imageX),
+                            Math.floor(imageY)
+                        )
+
+                        console.log(currentContour.length)
+                    }
                 }
             }
 
@@ -188,6 +270,9 @@ ApplicationWindow {
             onHeightChanged: {
                 container.clampPosition()
             }
+        }
+        ListModel {
+            id: holdModel
         }
         Text {
             text: "Recent Walls"
